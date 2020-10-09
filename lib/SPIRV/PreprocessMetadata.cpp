@@ -70,7 +70,7 @@ public:
 
   bool runOnModule(Module &M) override;
   void visit(Module *M);
-  void preprocessOCLMetadata(Module *M, SPIRVMDBuilder *B, SPIRVMDWalker *W);
+  void preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B, SPIRVMDWalker *W);
   void preprocessVectorComputeMetadata(Module *M, SPIRVMDBuilder *B,
                                        SPIRVMDWalker *W);
 
@@ -103,7 +103,7 @@ void PreprocessMetadata::visit(Module *M) {
   SPIRVMDBuilder B(*M);
   SPIRVMDWalker W(*M);
 
-  preprocessOCLMetadata(M, &B, &W);
+  preprocessNVPTXMetadata(M, &B, &W);
   preprocessVectorComputeMetadata(M, &B, &W);
 
   // Create metadata representing (empty so far) list
@@ -198,25 +198,16 @@ void PreprocessMetadata::visit(Module *M) {
   }
 }
 
-void PreprocessMetadata::preprocessOCLMetadata(Module *M, SPIRVMDBuilder *B,
-                                               SPIRVMDWalker *W) {
-  unsigned CLVer = getOCLVersion(M, true);
-  if (CLVer == 0)
-    return;
-  // Preprocess OpenCL-specific metadata
-  // !spirv.Source = !{!x}
-  // !{x} = !{i32 3, i32 102000}
-  B->addNamedMD(kSPIRVMD::Source)
-      .addOp()
-      .add(CLVer == kOCLVer::CL21 ? spv::SourceLanguageOpenCL_CPP
-                                  : spv::SourceLanguageOpenCL_C)
-      .add(CLVer)
-      .done();
-  if (EraseOCLMD)
-    B->eraseNamedMD(kSPIR2MD::OCLVer).eraseNamedMD(kSPIR2MD::SPIRVer);
+
+void PreprocessMetadata::preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B,
+                                                 SPIRVMDWalker *W) {
+  // Preprocess NVPTX-specific metadata
+  // !nvvmir.version = !{!x}
+  // !{x} = !{i32 1, i32 4}
+  B->eraseNamedMD("nvvmir.version");
 
   // !spirv.MemoryModel = !{!x}
-  // !{x} = !{i32 1, i32 2}
+  // !{x} = !{i32 1, i32
   Triple TT(M->getTargetTriple());
   assert(isSupportedTriple(TT) && "Invalid triple");
   B->addNamedMD(kSPIRVMD::MemoryModel)
