@@ -106,6 +106,18 @@ void PreprocessMetadata::visit(Module *M) {
   preprocessNVPTXMetadata(M, &B, &W);
   preprocessVectorComputeMetadata(M, &B, &W);
 
+  // Add MetaData for SPIR
+  // TODO: modify the magic number
+  B.addNamedMD("opencl.spir.version")
+      .addOp()
+      .add(unsigned(1))
+      .add(unsigned(2))
+      .done();
+  B.addNamedMD("opencl.ocl.version")
+      .addOp()
+      .add(unsigned(1))
+      .add(unsigned(0))
+      .done();
   // Create metadata representing (empty so far) list
   // of OpExecutionMode instructions
   auto EM = B.addNamedMD(kSPIRVMD::ExecutionMode); // !spirv.ExecutionMode = {}
