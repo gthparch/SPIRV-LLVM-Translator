@@ -483,14 +483,15 @@ SPIRVFunction *LLVMToSPIRV::transFunctionDecl(Function *F) {
   if (auto BF = getTranslatedValue(F))
     return static_cast<SPIRVFunction *>(BF);
 
-  if (F->isIntrinsic() && (!BM->isSPIRVAllowUnknownIntrinsicsEnabled() ||
-                           isKnownIntrinsic(F->getIntrinsicID()))) {
-    // We should not translate LLVM intrinsics as a function
-    assert(none_of(F->user_begin(), F->user_end(),
-                   [this](User *U) { return getTranslatedValue(U); }) &&
-           "LLVM intrinsics shouldn't be called in SPIRV");
-    return nullptr;
-  }
+  if (!F->getName().startswith("llvm.nvvm"))
+    if (F->isIntrinsic() && (!BM->isSPIRVAllowUnknownIntrinsicsEnabled() ||
+                             isKnownIntrinsic(F->getIntrinsicID()))) {
+      // We should not translate LLVM intrinsics as a function
+      assert(none_of(F->user_begin(), F->user_end(),
+                     [this](User *U) { return getTranslatedValue(U); }) &&
+             "LLVM intrinsics shouldn't be called in SPIRV");
+      return nullptr;
+    }
 
   SPIRVTypeFunction *BFT = static_cast<SPIRVTypeFunction *>(
       transType(getAnalysis<OCLTypeToSPIRV>().getAdaptedType(F)));
@@ -498,7 +499,11 @@ SPIRVFunction *LLVMToSPIRV::transFunctionDecl(Function *F) {
       static_cast<SPIRVFunction *>(mapValue(F, BM->addFunction(BFT)));
   BF->setFunctionControlMask(transFunctionControlMask(F));
   if (F->hasName())
-    BM->setName(BF, F->getName());
+    if (!F->getName().startswith("llvm.nvvm"))
+      BM->setName(BF, F->getName());
+    else
+      // (TODO): modify this hard code by mangling name
+      BM->setName(BF, "_Z13get_global_idj");
   if (isKernel(F))
     BM->addEntryPoint(ExecutionModelKernel, BF->getId());
   else if (F->getLinkage() != GlobalValue::InternalLinkage)
@@ -1851,7 +1856,8 @@ SPIRVValue *LLVMToSPIRV::transIntrinsicInst(IntrinsicInst *II,
   case Intrinsic::dbg_label:
     return nullptr;
   default:
-    if (BM->isSPIRVAllowUnknownIntrinsicsEnabled())
+    if (true)
+      // if (BM->isSPIRVAllowUnknownIntrinsicsEnabled())
       return BM->addCallInst(
           transFunctionDecl(II->getCalledFunction()),
           transArguments(II, BB,
