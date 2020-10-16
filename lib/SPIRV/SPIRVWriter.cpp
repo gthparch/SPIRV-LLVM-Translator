@@ -66,6 +66,7 @@
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
@@ -495,6 +496,16 @@ SPIRVFunction *LLVMToSPIRV::transFunctionDecl(Function *F) {
 
   SPIRVTypeFunction *BFT = static_cast<SPIRVTypeFunction *>(
       transType(getAnalysis<OCLTypeToSPIRV>().getAdaptedType(F)));
+  // llvm.nvvm.read.ptx.sreg.tid.x() does not have any parameters
+  // while get_global_idj need an index as parameters
+  if (F->getName().startswith("llvm.nvvm")) {
+    auto FT = F->getFunctionType();
+    std::vector<Type *> ArgTys;
+    Type *Int32Ty = Type::getInt32Ty(*Ctx);
+    ArgTys.push_back(Int32Ty);
+    BFT = static_cast<SPIRVTypeFunction *>(transType(
+        FunctionType::get(FT->getReturnType(), ArgTys, FT->isVarArg())));
+  }
   SPIRVFunction *BF =
       static_cast<SPIRVFunction *>(mapValue(F, BM->addFunction(BFT)));
   BF->setFunctionControlMask(transFunctionControlMask(F));
@@ -503,6 +514,7 @@ SPIRVFunction *LLVMToSPIRV::transFunctionDecl(Function *F) {
       BM->setName(BF, F->getName());
     else
       // (TODO): modify this hard code by mangling name
+      // using https://github.com/KhronosGroup/SPIRV-Tools
       BM->setName(BF, "_Z13get_global_idj");
   if (isKernel(F))
     BM->addEntryPoint(ExecutionModelKernel, BF->getId());
@@ -1670,6 +1682,7 @@ SPIRVValue *LLVMToSPIRV::transIntrinsicInst(IntrinsicInst *II,
   // LLVM intrinsics with known translation to SPIR-V are handled here. They
   // also must be registered at isKnownIntrinsic function in order to make
   // -spirv-allow-unknown-intrinsics work correctly.
+  std::vector<SPIRVWord> args; // used for construct customized args
   switch (II->getIntrinsicID()) {
   case Intrinsic::bitreverse: {
     BM->addCapability(CapabilityShader);
@@ -1855,15 +1868,18 @@ SPIRVValue *LLVMToSPIRV::transIntrinsicInst(IntrinsicInst *II,
   case Intrinsic::invariant_end:
   case Intrinsic::dbg_label:
     return nullptr;
+  case Intrinsic::nvvm_read_ptx_sreg_tid_x:
+    args.push_back(0);
+    return BM->addCallInst(transFunctionDecl(II->getCalledFunction()), args,
+                           BB);
   default:
-    if (true)
-      // if (BM->isSPIRVAllowUnknownIntrinsicsEnabled())
+    if (BM->isSPIRVAllowUnknownIntrinsicsEnabled()) {
       return BM->addCallInst(
           transFunctionDecl(II->getCalledFunction()),
           transArguments(II, BB,
                          SPIRVEntry::createUnique(OpFunctionCall).get()),
           BB);
-    else
+    } else
       // Other LLVM intrinsics shouldn't get to SPIRV, because they
       // can't be represented in SPIRV or aren't implemented yet.
       BM->getErrorLog().checkError(false, SPIRVEC_InvalidFunctionCall,
