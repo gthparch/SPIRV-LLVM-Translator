@@ -484,7 +484,6 @@ SPIRVFunction *LLVMToSPIRV::transFunctionDecl(Function *F) {
   if (auto BF = getTranslatedValue(F))
     return static_cast<SPIRVFunction *>(BF);
 
-  if (!F->getName().startswith("llvm.nvvm"))
     if (F->isIntrinsic() && (!BM->isSPIRVAllowUnknownIntrinsicsEnabled() ||
                              isKnownIntrinsic(F->getIntrinsicID()))) {
       // We should not translate LLVM intrinsics as a function
@@ -496,26 +495,11 @@ SPIRVFunction *LLVMToSPIRV::transFunctionDecl(Function *F) {
 
   SPIRVTypeFunction *BFT = static_cast<SPIRVTypeFunction *>(
       transType(getAnalysis<OCLTypeToSPIRV>().getAdaptedType(F)));
-  // llvm.nvvm.read.ptx.sreg.tid.x() does not have any parameters
-  // while get_global_idj need an index as parameters
-  if (F->getName().startswith("llvm.nvvm")) {
-    auto FT = F->getFunctionType();
-    std::vector<Type *> ArgTys;
-    Type *Int32Ty = Type::getInt32Ty(*Ctx);
-    ArgTys.push_back(Int32Ty);
-    BFT = static_cast<SPIRVTypeFunction *>(transType(
-        FunctionType::get(FT->getReturnType(), ArgTys, FT->isVarArg())));
-  }
   SPIRVFunction *BF =
       static_cast<SPIRVFunction *>(mapValue(F, BM->addFunction(BFT)));
   BF->setFunctionControlMask(transFunctionControlMask(F));
   if (F->hasName())
-    if (!F->getName().startswith("llvm.nvvm"))
       BM->setName(BF, F->getName());
-    else
-      // (TODO): modify this hard code by mangling name
-      // using https://github.com/KhronosGroup/SPIRV-Tools
-      BM->setName(BF, "_Z13get_global_idj");
   if (isKernel(F))
     BM->addEntryPoint(ExecutionModelKernel, BF->getId());
   else if (F->getLinkage() != GlobalValue::InternalLinkage)
@@ -1868,10 +1852,6 @@ SPIRVValue *LLVMToSPIRV::transIntrinsicInst(IntrinsicInst *II,
   case Intrinsic::invariant_end:
   case Intrinsic::dbg_label:
     return nullptr;
-  case Intrinsic::nvvm_read_ptx_sreg_tid_x:
-    args.push_back(0);
-    return BM->addCallInst(transFunctionDecl(II->getCalledFunction()), args,
-                           BB);
   default:
     if (BM->isSPIRVAllowUnknownIntrinsicsEnabled()) {
       return BM->addCallInst(
