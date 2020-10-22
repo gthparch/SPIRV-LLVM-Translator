@@ -342,12 +342,12 @@ bool OCL20ToSPIRV::runOnModule(Module &Module) {
   M = &Module;
   Ctx = &M->getContext();
   auto Src = getSPIRVSource(&Module);
-  if (std::get<0>(Src) != spv::SourceLanguageOpenCL_C)
-    return false;
+  // if (std::get<0>(Src) != spv::SourceLanguageOpenCL_C)
+  //  return false;
 
-  CLVer = std::get<1>(Src);
-  if (CLVer == kOCLVer::CL21)
-    return false;
+  // CLVer = std::get<1>(Src);
+  // if (CLVer == kOCLVer::CL21)
+  //  return false;
 
   LLVM_DEBUG(dbgs() << "Enter OCL20ToSPIRV:\n");
 
@@ -1288,6 +1288,9 @@ void OCL20ToSPIRV::transWorkItemBuiltinsToVariables() {
         std::string(kSPIRVName::Prefix) + SPIRVBuiltInNameMap::map(BVKind);
     LLVM_DEBUG(dbgs() << "builtin variable name: " << BuiltinVarName << '\n');
     bool IsVec = I.getFunctionType()->getNumParams() > 0;
+    if (DemangledName == "get_global_id") {
+      IsVec = true;
+    }
     Type *GVType =
         IsVec ? VectorType::get(I.getReturnType(), 3) : I.getReturnType();
     auto BV = new GlobalVariable(*M, GVType, true, GlobalValue::ExternalLinkage,
@@ -1300,8 +1303,14 @@ void OCL20ToSPIRV::transWorkItemBuiltinsToVariables() {
       Value *NewValue = new LoadInst(BV, "", CI);
       LLVM_DEBUG(dbgs() << "Transform: " << *CI << " => " << *NewValue << '\n');
       if (IsVec) {
-        NewValue =
-            ExtractElementInst::Create(NewValue, CI->getArgOperand(0), "", CI);
+        if (DemangledName == "get_global_id") {
+          unsigned int idx = I.getName().str().back() - 'x';
+          NewValue =
+              ExtractElementInst::Create(NewValue, getUInt32(M, idx), "", CI);
+        } else {
+          NewValue = ExtractElementInst::Create(NewValue, CI->getArgOperand(0),
+                                                "", CI);
+        }
         LLVM_DEBUG(dbgs() << *NewValue << '\n');
       }
       NewValue->takeName(CI);

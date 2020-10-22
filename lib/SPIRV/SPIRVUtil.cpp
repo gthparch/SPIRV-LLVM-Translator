@@ -473,6 +473,11 @@ bool isNonMangledOCLBuiltin(const StringRef &Name) {
 
 bool oclIsBuiltin(const StringRef &Name, std::string *DemangledName,
                   bool IsCpp) {
+  if (Name == "llvm.nvvm.read.ptx.sreg.tid.x") {
+    if (DemangledName)
+      *DemangledName = "get_global_id";
+    return true;
+  }
   if (Name == "printf") {
     if (DemangledName)
       *DemangledName = Name;
