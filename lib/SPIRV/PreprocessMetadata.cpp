@@ -269,6 +269,11 @@ void PreprocessMetadata::preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B,
       Function *F = mdconst::dyn_extract<Function>(MD->getOperand(0));
       std::cout << F->getName().str() << std::endl;
       kernels.insert(F);
+      std::vector<Metadata *> ValueVec;
+      ValueVec.push_back(MDString::get(*Ctx, "none"));
+      ValueVec.push_back(MDString::get(*Ctx, "none"));
+      ValueVec.push_back(MDString::get(*Ctx, "none"));
+      F->setMetadata("kernel_arg_access_qual", MDNode::get(*Ctx, ValueVec));
     }
   }
   for (Function &F : *M) {
