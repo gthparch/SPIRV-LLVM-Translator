@@ -234,6 +234,7 @@ void PreprocessMetadata::preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B,
   // !x = {!"cl_khr_..."}
   // !y = {!"cl_khr_..."}
   auto Exts = getNamedMDAsStringSet(M, kSPIR2MD::Extensions);
+
   if (!Exts.empty()) {
     auto N = B->addNamedMD(kSPIRVMD::SourceExtension);
     for (auto &I : Exts)
@@ -244,6 +245,37 @@ void PreprocessMetadata::preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B,
 
   if (EraseOCLMD)
     B->eraseNamedMD(kSPIR2MD::FPContract);
+  // add kernel_arg_access_qual for kernels
+  // get kernels
+  NamedMDNode *NamedMD = M->getNamedMetadata("nvvm.annotations");
+  std::set<Function *> kernels;
+  if (!NamedMD) {
+    printf("there must be nvvm.annotations!\n");
+    exit(1);
+  }
+  // !nvvm.annotations = !{!3, !4, !5, !4, !6, !6, !6, !6, !7, !7, !6}
+  // !3 = !{void (i32*, i32*, i32*)* @_Z6vecaddPiS_S_, !"kernel", i32 1}
+  for (unsigned I = 0, E = NamedMD->getNumOperands(); I != E; ++I) {
+    MDNode *MD = NamedMD->getOperand(I);
+    if (!MD || MD->getNumOperands() == 0)
+      continue;
+    if (MD->getNumOperands() != 3)
+      continue;
+    Metadata *Op = MD->getOperand(1);
+    if (auto Str = dyn_cast<MDString>(Op)) {
+      if (Str->getString().str() != "kernel")
+        continue;
+      // S = Str->getString().str();
+      Function *F = mdconst::dyn_extract<Function>(MD->getOperand(0));
+      std::cout << F->getName().str() << std::endl;
+      kernels.insert(F);
+    }
+  }
+  for (Function &F : *M) {
+    if (kernels.find(&F) != kernels.end()) {
+      std::cout << F.getName().str() << std::endl;
+    }
+  }
 }
 
 void PreprocessMetadata::preprocessVectorComputeMetadata(Module *M,
