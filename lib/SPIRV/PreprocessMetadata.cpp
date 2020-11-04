@@ -270,10 +270,30 @@ void PreprocessMetadata::preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B,
       std::cout << F->getName().str() << std::endl;
       kernels.insert(F);
       std::vector<Metadata *> ValueVec;
+      // construct kernel_arg_access_qual
       ValueVec.push_back(MDString::get(*Ctx, "none"));
       ValueVec.push_back(MDString::get(*Ctx, "none"));
       ValueVec.push_back(MDString::get(*Ctx, "none"));
       F->setMetadata("kernel_arg_access_qual", MDNode::get(*Ctx, ValueVec));
+
+      // construct kernel_arg_type
+      ValueVec.clear();
+      ValueVec.push_back(MDString::get(*Ctx, "int*"));
+      ValueVec.push_back(MDString::get(*Ctx, "int*"));
+      ValueVec.push_back(MDString::get(*Ctx, "int*"));
+      F->setMetadata("kernel_arg_type", MDNode::get(*Ctx, ValueVec));
+
+      // construct kernel_arg_addr_space
+      ValueVec.clear();
+      ValueVec.push_back(
+          ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(*Ctx), 1)));
+      ValueVec.push_back(
+          ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(*Ctx), 1)));
+      ValueVec.push_back(
+          ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(*Ctx), 1)));
+      F->setMetadata("kernel_arg_addr_space", MDNode::get(*Ctx, ValueVec));
+      // makr this Function as KERNEL
+      F->setCallingConv(CallingConv::SPIR_KERNEL);
     }
   }
   for (Function &F : *M) {
