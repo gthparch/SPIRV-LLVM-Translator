@@ -1293,6 +1293,8 @@ void OCL20ToSPIRV::transWorkItemBuiltinsToVariables() {
     }
     Type *GVType =
         IsVec ? VectorType::get(I.getReturnType(), 3) : I.getReturnType();
+    if (DemangledName == "get_global_id")
+      GVType = VectorType::get(Type::getInt64Ty(*Ctx), 3);
     auto BV = new GlobalVariable(*M, GVType, true, GlobalValue::ExternalLinkage,
                                  nullptr, BuiltinVarName, 0,
                                  GlobalVariable::NotThreadLocal, SPIRAS_Input);
@@ -1307,6 +1309,8 @@ void OCL20ToSPIRV::transWorkItemBuiltinsToVariables() {
           unsigned int idx = I.getName().str().back() - 'x';
           NewValue =
               ExtractElementInst::Create(NewValue, getUInt32(M, idx), "", CI);
+          NewValue = CastInst::CreateIntegerCast(
+              NewValue, Type::getInt32Ty(*Ctx), false, "", CI);
         } else {
           NewValue = ExtractElementInst::Create(NewValue, CI->getArgOperand(0),
                                                 "", CI);
