@@ -473,9 +473,9 @@ bool isNonMangledOCLBuiltin(const StringRef &Name) {
 
 bool oclIsBuiltin(const StringRef &Name, std::string *DemangledName,
                   bool IsCpp) {
-  if (Name == "llvm.nvvm.read.ptx.sreg.tid.x") {
+  if (Name.startswith("llvm.nvvm.read.ptx.sreg.tid")) {
     if (DemangledName)
-      *DemangledName = "get_global_id";
+      *DemangledName = "get_local_id";
     return true;
   }
   if (Name == "printf") {

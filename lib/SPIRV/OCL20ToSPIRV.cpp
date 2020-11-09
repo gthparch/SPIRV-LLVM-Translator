@@ -1288,12 +1288,12 @@ void OCL20ToSPIRV::transWorkItemBuiltinsToVariables() {
         std::string(kSPIRVName::Prefix) + SPIRVBuiltInNameMap::map(BVKind);
     LLVM_DEBUG(dbgs() << "builtin variable name: " << BuiltinVarName << '\n');
     bool IsVec = I.getFunctionType()->getNumParams() > 0;
-    if (DemangledName == "get_global_id") {
+    if (DemangledName == "get_local_id") {
       IsVec = true;
     }
     Type *GVType =
         IsVec ? VectorType::get(I.getReturnType(), 3) : I.getReturnType();
-    if (DemangledName == "get_global_id")
+    if (DemangledName == "get_local_id")
       GVType = VectorType::get(Type::getInt64Ty(*Ctx), 3);
     auto BV = new GlobalVariable(*M, GVType, true, GlobalValue::ExternalLinkage,
                                  nullptr, BuiltinVarName, 0,
@@ -1305,7 +1305,7 @@ void OCL20ToSPIRV::transWorkItemBuiltinsToVariables() {
       Value *NewValue = new LoadInst(BV, "", CI);
       LLVM_DEBUG(dbgs() << "Transform: " << *CI << " => " << *NewValue << '\n');
       if (IsVec) {
-        if (DemangledName == "get_global_id") {
+        if (DemangledName == "get_local_id") {
           unsigned int idx = I.getName().str().back() - 'x';
           NewValue =
               ExtractElementInst::Create(NewValue, getUInt32(M, idx), "", CI);
