@@ -269,29 +269,39 @@ void PreprocessMetadata::preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B,
       Function *F = mdconst::dyn_extract<Function>(MD->getOperand(0));
       std::cout << F->getName().str() << std::endl;
       kernels.insert(F);
-      std::vector<Metadata *> ValueVec;
+
       // construct kernel_arg_access_qual
-      ValueVec.push_back(MDString::get(*Ctx, "none"));
-      ValueVec.push_back(MDString::get(*Ctx, "none"));
-      ValueVec.push_back(MDString::get(*Ctx, "none"));
-      F->setMetadata("kernel_arg_access_qual", MDNode::get(*Ctx, ValueVec));
+      std::vector<Metadata *> kernel_arg_access_qual_Vec;
+      auto A = F->arg_begin(), E = F->arg_end();
+      for (unsigned I = 0; A != E; ++I, ++A) {
+        kernel_arg_access_qual_Vec.push_back(MDString::get(*Ctx, "none"));
+      }
+      F->setMetadata("kernel_arg_access_qual",
+                     MDNode::get(*Ctx, kernel_arg_access_qual_Vec));
+      kernel_arg_access_qual_Vec.clear();
 
       // construct kernel_arg_type
-      ValueVec.clear();
-      ValueVec.push_back(MDString::get(*Ctx, "int*"));
-      ValueVec.push_back(MDString::get(*Ctx, "int*"));
-      ValueVec.push_back(MDString::get(*Ctx, "int*"));
-      F->setMetadata("kernel_arg_type", MDNode::get(*Ctx, ValueVec));
+      std::vector<Metadata *> kernel_arg_type_Vec;
+      A = F->arg_begin();
+      E = F->arg_end();
+      for (unsigned I = 0; A != E; ++I, ++A) {
+        kernel_arg_type_Vec.push_back(MDString::get(*Ctx, "int*"));
+      }
+      F->setMetadata("kernel_arg_type", MDNode::get(*Ctx, kernel_arg_type_Vec));
+      kernel_arg_type_Vec.clear();
 
       // construct kernel_arg_addr_space
-      ValueVec.clear();
-      ValueVec.push_back(
-          ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(*Ctx), 1)));
-      ValueVec.push_back(
-          ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(*Ctx), 1)));
-      ValueVec.push_back(
-          ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(*Ctx), 1)));
-      F->setMetadata("kernel_arg_addr_space", MDNode::get(*Ctx, ValueVec));
+      std::vector<Metadata *> kernel_arg_addr_space_Vec;
+      A = F->arg_begin();
+      E = F->arg_end();
+      for (unsigned I = 0; A != E; ++I, ++A) {
+        kernel_arg_addr_space_Vec.push_back(ConstantAsMetadata::get(
+            ConstantInt::get(Type::getInt32Ty(*Ctx), 1)));
+      }
+      F->setMetadata("kernel_arg_addr_space",
+                     MDNode::get(*Ctx, kernel_arg_addr_space_Vec));
+      kernel_arg_addr_space_Vec.clear();
+
       // makr this Function as KERNEL
       F->setCallingConv(CallingConv::SPIR_KERNEL);
     }
