@@ -285,7 +285,12 @@ void PreprocessMetadata::preprocessNVPTXMetadata(Module *M, SPIRVMDBuilder *B,
       A = F->arg_begin();
       E = F->arg_end();
       for (unsigned I = 0; A != E; ++I, ++A) {
-        kernel_arg_type_Vec.push_back(MDString::get(*Ctx, "int*"));
+        if (!A->getType()->isPointerTy())
+          continue;
+        if (A->getType()->isFloatingPointTy())
+          kernel_arg_type_Vec.push_back(MDString::get(*Ctx, "float*"));
+        else
+          kernel_arg_type_Vec.push_back(MDString::get(*Ctx, "int*"));
       }
       F->setMetadata("kernel_arg_type", MDNode::get(*Ctx, kernel_arg_type_Vec));
       kernel_arg_type_Vec.clear();
