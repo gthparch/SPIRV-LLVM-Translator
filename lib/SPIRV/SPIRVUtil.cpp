@@ -488,6 +488,11 @@ bool oclIsBuiltin(const StringRef &Name, std::string *DemangledName,
       *DemangledName = "get_group_id";
     return true;
   }
+  if (Name.startswith("llvm.nvvm.barrier0")) {
+    if (DemangledName)
+      *DemangledName = "barrier";
+    return true;
+  }
   if (Name == "printf") {
     if (DemangledName)
       *DemangledName = Name;
