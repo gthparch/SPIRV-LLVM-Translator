@@ -382,8 +382,9 @@ void OCL20ToSPIRV::visitAtomicRMWInst(AtomicRMWInst &ARMWI) {
     Args.push_back(ARMWI.getValOperand());
     FunctionType *FT =
         FunctionType::get(ARMWI.getType(), getTypes(Args), false /*isVarArg*/);
+    // TODO: remove this hard code function name
     Function *NewF = Function::Create(FT, GlobalValue::ExternalLinkage,
-                                      "_Z10atomic_addPU3AS1Vii", M);
+                                      "_Z10atomic_addPU8CLglobalVii", M);
     CallInst *NewCall = CallInst::Create(NewF, Args, "", &ARMWI);
     ARMWI.replaceAllUsesWith(NewCall);
     ARMWI.eraseFromParent();
